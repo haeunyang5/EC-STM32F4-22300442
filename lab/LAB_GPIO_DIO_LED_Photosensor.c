@@ -32,9 +32,10 @@ int main(void){
 
     while(1){
         // check if the pushbutton is pressed. Turn LED on/off accordingly
+        // toggle (Turn on -> off -> on -> off)
         buttonState = GPIO_read(BUTTON_PIN) ;
-        if(buttonState == 0) GPIO_write(LED_PIN, LOW) ;
-        else  GPIO_write(LED_PIN, HIGH) ;
+        if(buttonState == 1)  GPIO_write(LED_PIN, LOW) ;
+        else GPIO_write(LED_PIN, HIGH) ;
         delay_ms_HSI(100) ;
     }
 }

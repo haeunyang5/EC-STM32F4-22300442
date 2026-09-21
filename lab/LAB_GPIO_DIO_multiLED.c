@@ -2,7 +2,7 @@
 @ Embedded Controller by Young-Keun Kim - Handong Global University
 Author           : Haeun Yang
 Created          : 05-03-2021
-Modified         : 09-14-2026
+Modified         : 09-20-2026
 Language/ver     : C++ in VS Code
 
 Description      : Toggle multi LEDs with a button
@@ -19,12 +19,55 @@ Description      : Toggle multi LEDs with a button
 #define BUTTON_PIN PA_4
 
 // Initialization
-void LEDsetup(LED){
-    GPIO_init(LED, OUTPUT) ;   // Initialze the LED pin as an output
-    GPIO_ospeed(LED, MEDIUM_SPEED) ;
-    GPIO_pupd(LED, PU) ;
-    GPIO_otype(LED, OPEN_DRAIN) ;
+void setup(void) ;
+void LEDsetup(uint32_t LED) ; 
+
+
+int main(void){
+    setup() ;
+    int buttonState = 1 ;
+    int prevButtonState = 1 ; 
+    int flag = 0 ;
+
+    while(1){
+        // check if the pushbutton is pressed. 
+        // change like: LED0 -> LED1 -> LED2 -> LED3 -> LED0 (Active high)
+        buttonState = GPIO_read(BUTTON_PIN) ;
+        if (buttonState == 0 && prevButtonState == 1) {
+            if (flag == 0){
+                GPIO_write(LED_0, HIGH) ;  // BUTTON -> Active Low(0 일 때가 눌렸을 때)
+                GPIO_write(LED_1, LOW) ;
+                GPIO_write(LED_2, LOW) ;
+                GPIO_write(LED_3, LOW) ;
+                flag = 1 ;
+            }
+            else if (flag == 1){
+                GPIO_write(LED_0, LOW) ;  // BUTTON -> Active Low(0 일 때가 눌렸을 때)
+                GPIO_write(LED_1, HIGH) ;
+                GPIO_write(LED_2, LOW) ;
+                GPIO_write(LED_3, LOW) ;
+                flag = 2 ;
+            }
+            else if (flag == 2){
+                GPIO_write(LED_0, LOW) ;  // BUTTON -> Active Low(0 일 때가 눌렸을 때)
+                GPIO_write(LED_1, LOW) ;
+                GPIO_write(LED_2, HIGH) ;
+                GPIO_write(LED_3, LOW) ;
+                flag = 3 ;
+            }
+            else if (flag == 3){
+                GPIO_write(LED_0, LOW) ;  // BUTTON -> Active Low(0 일 때가 눌렸을 때)
+                GPIO_write(LED_1, LOW) ;
+                GPIO_write(LED_2, LOW) ;
+                GPIO_write(LED_3, HIGH) ;
+                flag = 0 ;
+            }
+        }
+        prevButtonState = buttonState ;
+        delay_ms_HSI(100) ;
+    }
 }
+
 void setup(void){
     RCC_HSI_init();
     GPIO_init(BUTTON_PIN, INPUT) ;  // Initialize the pushbutton pin as an input:
@@ -36,22 +79,9 @@ void setup(void){
     LEDsetup(LED_3) ;
 }
 
-int main(void){
-    setup();
-    int buttonState = 0 ;
-
-    while(1){
-        // check if the pushbutton is pressed. 
-        // change like: LED0 -> LED1 -> LED2 -> LED3 -> LED0
-        buttonState = GPIO_read(BUTTON_PIN) ;
-        for (int i=0; i<4; i++){
-            if(buttonState == 1) GPIO_write(LED_0, HIGH) ;
-            if(buttonState == 1) GPIO_write(LED_1, HIGH) ;
-            if(buttonState == 1) GPIO_write(LED_2, HIGH) ;
-            if(buttonState == 1) GPIO_write(LED_3, HIGH) ;
-        }
-        if(buttonState == 1) GPIO_write(LED_0, HIGH) ;
-        else  GPIO_write(LED_PIN, HIGH) ;
-        delay_ms_HSI(100) ;
-    }
+void LEDsetup(uint32_t  LED){
+    GPIO_init(LED, OUTPUT) ;   // Initialze the LED pin as an output
+    GPIO_pupd(LED, PU) ;
+    GPIO_otype(LED, PUSH_PULL) ;
+    GPIO_ospeed(LED, MEDIUM_SPEED) ;
 }
