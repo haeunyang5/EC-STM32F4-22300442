@@ -1,66 +1,66 @@
-/*----------------------------------------------------------------\
-@ Embedded Controller by Young-Keun Kim - Handong Global University
-Author           : Haeun Yang
-Created          : 05-03-2021
-Modified         : 09-10-2026 
-Language/ver     : C++ in VS Code
+// /*----------------------------------------------------------------\
+// @ Embedded Controller by Young-Keun Kim - Handong Global University
+// Author           : Haeun Yang
+// Created          : 05-03-2021
+// Modified         : 09-10-2026 
+// Language/ver     : C++ in VS Code
 
-Description      : Tutorial Digital InOut
-/----------------------------------------------------------------*/
-
-
-
-// GPIO Mode			: Input(00), Output(01), AlterFunc(10), Analog(11, reset)
-// GPIO Speed			: Low speed (00), Medium speed (01), Fast speed (10), High speed (11)
-// GPIO Output Type		: Output push-pull (0, reset), Output open drain (1)
-// GPIO Push-Pull	 	: No pull-up, pull-down (00), Pull-up (01), Pull-down (10), Reserved (11)
+// Description      : Tutorial Digital InOut
+// /----------------------------------------------------------------*/
 
 
 
-#include "stm32f411xe.h"
-#include "ecRCC2.h"
+// // GPIO Mode			: Input(00), Output(01), AlterFunc(10), Analog(11, reset)
+// // GPIO Speed			: Low speed (00), Medium speed (01), Fast speed (10), High speed (11)
+// // GPIO Output Type		: Output push-pull (0, reset), Output open drain (1)
+// // GPIO Push-Pull	 	: No pull-up, pull-down (00), Pull-up (01), Pull-down (10), Reserved (11)
 
-#define LED_PIN    5		//LD2
-#define BUTTON_PIN 13		// B1 Button
 
-int main(void) {	
-	/* Part 1. RCC GPIOA Register Setting */
-		RCC_HSI_init();
-		RCC_GPIOA_enable();
-		RCC_GPIOC_enable();
 
-	/*---------------------------------------------------------------- 
-                    [EXERCISE]
-	---------------------------------------------------------------- */
+// #include "stm32f411xe.h"
+// #include "ecRCC2.h"
 
-	/// Part 2. GPIO Register Setting for OUTPUT ///			
-		// GPIO Mode Register MODE=OUTPUT
-		GPIOA->MODER &=  ~(3UL<<( BUTTON_PIN *2)) ;		// Clear '00' for Pin 5
-		GPIOA->MODER |=  1UL << (LED_PIN*2) ;		// Set '01' for Pin 5
+// #define LED_PIN    5		//LD2
+// #define BUTTON_PIN 13		// B1 Button
+
+// int main(void) {	
+// 	/* Part 1. RCC GPIOA Register Setting */
+// 		RCC_HSI_init();
+// 		RCC_GPIOA_enable();
+// 		RCC_GPIOC_enable();
+
+// 	/*---------------------------------------------------------------- 
+//                     [EXERCISE]
+// 	---------------------------------------------------------------- */
+
+// 	/// Part 2. GPIO Register Setting for OUTPUT ///			
+// 		// GPIO Mode Register MODE=OUTPUT
+// 		GPIOA->MODER &=  ~(3UL<<( BUTTON_PIN *2)) ;		// Clear '00' for Pin 5
+// 		GPIOA->MODER |=  1UL << (LED_PIN*2) ;		// Set '01' for Pin 5
 		
 		
 	
-	/// Part 3. GPIO Register Setting for INPUT ///			
-		// GPIO Mode Register  MODE=INPUT
-		GPIOC->MODER &= ~(3UL<<( BUTTON_PIN *2)) ;	// 00: Input	 		
+// 	/// Part 3. GPIO Register Setting for INPUT ///			
+// 		// GPIO Mode Register  MODE=INPUT
+// 		GPIOC->MODER &= ~(3UL<<( BUTTON_PIN *2)) ;	// 00: Input	 		
    
-		// GPIO Pull-Up/Pull-Down Register 
-		GPIOC->PUPDR &= ~(3<<( BUTTON_PIN *2));  // Clear '00'
-		GPIOC->PUPDR  |= 2<<( BUTTON_PIN *2) ;		// 10: Pull-down		    
+// 		// GPIO Pull-Up/Pull-Down Register 
+// 		GPIOC->PUPDR &= ~(3<<( BUTTON_PIN *2));  // Clear '00'
+// 		GPIOC->PUPDR  |= 2<<( BUTTON_PIN *2) ;		// 10: Pull-down		    
 
 
 
 
-	/* Button Value Initialization */	
-		unsigned int btVal=0;
+// 	/* Button Value Initialization */	
+// 		unsigned int btVal=0;
 	
-	/* Part 4. loop  */	
-		while(1){
-			//Read bit value of Button
-			btVal= (GPIOC->IDR) & (1UL << BUTTON_PIN);	
-			if(btVal == 0)
-				GPIOA->ODR |= (1UL << LED_PIN);	 		
-			else
-				GPIOA->ODR &= ~(1UL << LED_PIN); 
-		}
-}
+// 	/* Part 4. loop  */	
+// 		while(1){
+// 			//Read bit value of Button
+// 			btVal= (GPIOC->IDR) & (1UL << BUTTON_PIN);	
+// 			if(btVal == 0)
+// 				GPIOA->ODR |= (1UL << LED_PIN);	 		
+// 			else
+// 				GPIOA->ODR &= ~(1UL << LED_PIN); 
+// 		}
+// }

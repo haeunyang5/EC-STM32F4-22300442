@@ -15,30 +15,33 @@ Description      : GPIO Library. Distributed to Students for LAB_GPIO
 #include "ecRCC2.h"
 #include "ecPinNames.h"
 
+// MODER
 #define INPUT  0x00
 #define OUTPUT 0x01
 #define AF     0x02
 #define ANALOG 0x03
 
+// IDR & ODR
 #define HIGH 1
 #define LOW  0
 
-#define LED_PIN 	PA_5
-#define BUTTON_PIN  PC_13
-
+// OSPEED
 #define LOW_SPEED    0x00
 #define MEDIUM_SPEED 0x01
 #define FAST_SPEED   0x02
 #define HIGH_SPEED   0x03
 
+// OTYPER
 #define PUSH_PULL  0
 #define OPEN_DRAIN 1
 
+// PUDR
 #define NO_PUPD  0x00
 #define PU       0x01
 #define PD       0x02
 #define RESERVED 0x03
 
+#define FND_NUM        (int)(       4)
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
@@ -58,12 +61,12 @@ uint32_t  digitalRead(PinName_t pin);
 
 // FND for JKIT board 
 extern int numberFND[12][8];
-void FND_init(PinName_t *pinFND);
-void FND_select_init(PinName_t *selectFND);
-void FND_display(uint8_t num);
-void FND_select(uint8_t digit);
+void FND_init(PinName_t *pinFND) ;
+void FND_select_init(PinName_t *selectFND) ;
+void FND_display(PinName_t *pinFND, uint8_t num) ;
+void FND_select(uint8_t digit) ;
 
-
+void led_toggle(PinName_t pinName) ;
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

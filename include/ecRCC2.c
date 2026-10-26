@@ -22,13 +22,32 @@ void RCC_HSI_init() {
 	while ( (RCC->CR & 0x00000002U) == 0 ) {;}
 	
   // Select HSI as system clock source 
-  	RCC->CFGR &= (uint32_t)(~RCC_CFGR_SW); 								// not essential
-  	RCC->CFGR |= (uint32_t)RCC_CFGR_SW_HSI; 								//00: HSI16 oscillator used as system clock
+  	RCC->CFGR &= (uint32_t)(~RCC_CFGR_SW); 		// not essential
+  	RCC->CFGR |= (uint32_t)RCC_CFGR_SW_HSI; 	// 00: HSI16 oscillator used as system clock
 
 	// Wait till HSI is used as system clock source
   	while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != 0 ) {;}  
 
 	EC_SYSCLK=16000000;	
+}
+
+void RCC_HSE_init() {
+// Enable High Speed Internal Clock (HSE = 8 MHz)
+  RCC->CR |= ((uint32_t)RCC_CR_HSEON);
+	// RCC->CR |= 0x00000001U;
+	
+  // wait until HSE is ready
+  while ( (RCC->CR & (uint32_t) RCC_CR_HSERDY) == 0 ) {;}
+	// while ( (RCC->CR & 0x00000002U) == 0 ) {;}
+	
+  // Select HSI as system clock source 
+  	RCC->CFGR &= (uint32_t)(~RCC_CFGR_SW); 		// not essential
+  	RCC->CFGR |= (uint32_t)RCC_CFGR_SW_HSE; 	// 01: HSE16 oscillator used as system clock
+
+	// Wait till HSE is used as system clock source
+  	while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != 0 ) {;}  
+
+	EC_SYSCLK=8000000;	
 }
 
 

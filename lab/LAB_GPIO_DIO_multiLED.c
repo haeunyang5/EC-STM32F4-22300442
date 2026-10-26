@@ -16,7 +16,7 @@ Description      : Toggle multi LEDs with a button
 #define LED_2 PB_14
 #define LED_3 PB_15
 
-#define BUTTON_PIN PA_4
+#define BUTTON_PIN_ PA_4
 
 // Initialization
 void setup(void) ;
@@ -32,7 +32,7 @@ int main(void){
     while(1){
         // check if the pushbutton is pressed. 
         // change like: LED0 -> LED1 -> LED2 -> LED3 -> LED0 (Active high)
-        buttonState = GPIO_read(BUTTON_PIN) ;
+        buttonState = GPIO_read(BUTTON_PIN_) ;
         if (buttonState == 0 && prevButtonState == 1) {
             if (flag == 0){
                 GPIO_write(LED_0, HIGH) ;  // BUTTON -> Active Low(0 일 때가 눌렸을 때)
@@ -70,8 +70,8 @@ int main(void){
 
 void setup(void){
     RCC_HSI_init();
-    GPIO_init(BUTTON_PIN, INPUT) ;  // Initialize the pushbutton pin as an input:
-    GPIO_pupd(BUTTON_PIN, PU) ;
+    GPIO_init(BUTTON_PIN_, INPUT) ;  // Initialize the pushbutton pin as an input:
+    GPIO_pupd(BUTTON_PIN_, PU) ;
     
     LEDsetup(LED_0) ;
     LEDsetup(LED_1) ;

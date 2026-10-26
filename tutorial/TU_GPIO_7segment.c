@@ -5,11 +5,10 @@ Created          : 05-03-2021
 Modified         : 09-17-2026 
 Language/ver     : C++ in VS Code
 
-Description      : Tutorial Digital InOut
+Description      : Tutorial 7 segment
 /----------------------------------------------------------------*/
 
-#include "ecRCC2.h"
-#include "ecGPIO2.h"
+#include "ecSTM32F4v2.h"
 
 void setup(void);
 	

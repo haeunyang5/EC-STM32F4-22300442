@@ -90,7 +90,7 @@ void GPIO_write(PinName_t pinName, uint32_t Output){
 	unsigned int pin;
 	ecPinmap(pinName, &Port, &pin);
 
-	Port->ODR &= ~(0UL<<pin) ;
+	Port->ODR &= ~(1UL<<pin) ;
 	Port->ODR |= (Output<<pin) ;
 }
 
@@ -121,9 +121,9 @@ static PinName_t _fndSel[4];
 //Each led that has to light up gets a 1, every other led gets a 0
 //its in order  { (a,b,c,d,e,f,g,dp) }
 int numberFND[12][8]={
-                    {1,1,1,0,1,1,1,0},         // zero
-                    {0,0,1,0,0,1,0,0},         // one
-                    {1,0,1,1,1,0,1,0},         // two
+                    {1,1,1,1,1,1,0,0},         // zero
+                    {0,1,1,0,0,0,0,0},         // one
+                    {1,1,0,1,1,0,1,0},         // two
                     {1,1,1,1,0,0,1,0},         // three
 					{0,1,1,0,0,1,1,0},         // four
 					{1,0,1,1,0,1,1,0},         // five
@@ -146,31 +146,51 @@ void FND_init(PinName_t *pinFND){
 
 // Initialize select pins (FND0~FND3) as DOUT
 void FND_select_init(PinName_t *selectFND){	
-	for (int i=0; i<3; i++){
+	for (int i=0; i<FND_NUM; i++){
 		_fndSel[i] = selectFND[i] ;
 		GPIO_init(_fndSel[i], OUTPUT) ;
 	}
 }
 
 // Display a number 0 - 9 only
-void FND_display(uint8_t num){
+void FND_display(PinName_t *pinFND, uint8_t num){
 	if (num > 9 || num < 0) printf("!!ERROR!!") ; 
 	else {
 		for (int j=0; j<8; j++){
-			GPIO_write(_fndPins[j], numberFND[num][j]) ; 
+			_fndPins[j] = numberFND[num][j] ; 
+			GPIO_write(pinFND[j], _fndPins[j]) ;
 		}
 	}
 }
 
+
 // Select display: FND0 to FND3
 void FND_select(uint8_t digit){
-	for (int i=0; i<4; i++){
-		if (i != digit) GPIO_mode(_fndSel[i], OUTPUT) ;
-		else if (i == digit) GPIO_mode(_fndSel[digit], INPUT) ;
+	for (int i=0; i<FND_NUM; i++){
+		if (i == digit) {
+			GPIO_mode(_fndSel[i], OUTPUT) ; 
+			GPIO_write(_fndSel[i], HIGH) ;
+		}
+		else GPIO_mode(_fndSel[i], INPUT) ;
 	}
 }
 
+// GHOSTING 문제 해결
+// void FND_select(uint8_t digit){
+// 	for (int i=0; i<FND_NUM; i++){
+// 		if (i == digit) {
+// 			GPIO_mode(_fndSel[i], OUTPUT) ; 
+// 			GPIO_write(_fndSel[i], HIGH) ;
+// 		}
+// 			GPIO_mode(_fndSel[i], OUTPUT) ; 
+// 			GPIO_write(_fndSel[i], LOW) ;
+// 	}
+// }
 
-
-
-
+void led_toggle(PinName_t pinName){
+	GPIO_TypeDef *Port;    
+	unsigned int pin;
+	ecPinmap(pinName,&Port,&pin);
+    
+    Port->ODR ^= (1UL << pin) ;
+}
