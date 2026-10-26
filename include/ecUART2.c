@@ -179,12 +179,12 @@ void USART2_baud(uint32_t baud){
 
 /*================ Configuration for each USART ================*/
 void USART1_init(void){
-	// ********************** USART 1 ***************************
-	// PA_9 = USART1_TX (default)	// PB_6  (option)
-	// PA_10 = USART1_RX (default)	// PB_3 (option)
-	// APB2
-	// **********************************************************
-	//USART_init(USART1, PA_9, PA_10, 9600);
+   // ********************** USART 1 ***************************
+   // PA_9 = USART1_TX (default)   // PB_6  (option)
+   // PA_10 = USART1_RX (default)   // PB_3 (option)
+   // APB2
+   // **********************************************************
+   //USART_init(USART1, PA_9, PA_10, 9600);
 
   ////////////////////////////////////////////
   //  for USART1  ONLY
@@ -193,79 +193,83 @@ void USART1_init(void){
 
 //1. GPIO Pin for TX and RX
 // Default : PA_9 = USART1_TX, PA_10 = USART1_RX
-	PinName_t pin_GPIO_TX  =PA_9;
-	PinName_t pin_GPIO_RX  =PA_10;
+   PinName_t pin_GPIO_TX  =PA_9;
+   PinName_t pin_GPIO_RX  =PA_10;
 
-	GPIO_TypeDef *GPIO_TX;
-	unsigned int pinTX;
-	ecPinmap(pin_GPIO_TX, &GPIO_TX, &pinTX);
-	GPIO_TypeDef *GPIO_RX;
-	unsigned int pinRX;
-	ecPinmap(pin_GPIO_RX, &GPIO_RX, &pinRX);
+   GPIO_TypeDef *GPIO_TX;
+   unsigned int pinTX;
+   ecPinmap(pin_GPIO_TX, &GPIO_TX, &pinTX);
+   GPIO_TypeDef *GPIO_RX;
+   unsigned int pinRX;
+   ecPinmap(pin_GPIO_RX, &GPIO_RX, &pinRX);
 
-	// Alternate Function, Push-Pull, No Pull-up/down, High speed
-	GPIO_init(pin_GPIO_TX, AF);
-	GPIO_otype(pin_GPIO_TX, PUSH_PULL);
-	GPIO_pupd(pin_GPIO_TX, NO_PUPD);
-	GPIO_ospeed(pin_GPIO_TX, HIGH);
+   // Alternate Function, Push-Pull, No Pull-up/down, High speed
+   GPIO_init(pin_GPIO_TX, AF);
+   GPIO_otype(pin_GPIO_TX, PUSH_PULL);
+   GPIO_pupd(pin_GPIO_TX, LOW);
+   GPIO_ospeed(pin_GPIO_TX, HIGH);
 
-	GPIO_init(pin_GPIO_RX, AF);
-	GPIO_otype(pin_GPIO_RX, PUSH_PULL);
-	GPIO_pupd(pin_GPIO_RX, NO_PUPD);
-	GPIO_ospeed(pin_GPIO_RX, HIGH);
+   GPIO_init(pin_GPIO_RX, AF);
+   GPIO_otype(pin_GPIO_RX, PUSH_PULL);
+   GPIO_pupd(pin_GPIO_RX, LOW);
+   GPIO_ospeed(pin_GPIO_RX, HIGH);
 
- 	// Set Alternate Function Register for USARTx
-	//   AF7 - USART1, USART2
-	//   AF8 - USART6
-	uint32_t AF_num = (USARTx == USART6) ? 8 : 7;
-	if (pinTX < 8) { GPIO_TX->AFR[0] &= ~(0xFUL << (4*pinTX));     GPIO_TX->AFR[0] |= AF_num << (4*pinTX); }
-	else           { GPIO_TX->AFR[1] &= ~(0xFUL << (4*(pinTX-8))); GPIO_TX->AFR[1] |= AF_num << (4*(pinTX-8)); }
-	if (pinRX < 8) { GPIO_RX->AFR[0] &= ~(0xFUL << (4*pinRX));     GPIO_RX->AFR[0] |= AF_num << (4*pinRX); }
-	else           { GPIO_RX->AFR[1] &= ~(0xFUL << (4*(pinRX-8))); GPIO_RX->AFR[1] |= AF_num << (4*(pinRX-8)); }
+    // Set Alternate Function Register for USARTx
+   //   AF7 - USART1, USART2
+   //   AF8 - USART6
+   uint32_t AF_num = (USARTx == USART6) ? 8 : 7;
+   if (pinTX < 8) { GPIO_TX->AFR[0] &= ~(0xFUL << (4*pinTX));     GPIO_TX->AFR[0] |= AF_num << (4*pinTX); }
+   else           { GPIO_TX->AFR[1] &= ~(0xFUL << (4*(pinTX-8))); GPIO_TX->AFR[1] |= AF_num << (4*(pinTX-8)); }
+   if (pinRX < 8) { GPIO_RX->AFR[0] &= ~(0xFUL << (4*pinRX));     GPIO_RX->AFR[0] |= AF_num << (4*pinRX); }
+   else           { GPIO_RX->AFR[1] &= ~(0xFUL << (4*(pinRX-8))); GPIO_RX->AFR[1] |= AF_num << (4*(pinRX-8)); }
 
 
 //2. USARTx (x=2,1,6) configuration
   // Enable USART peripheral clock
-  	//      USART2   = APB1
-  	//      USART1,6 = APB2
-	USART_clock_enable(USARTx);
+     //      USART2   = APB1
+     //      USART1,6 = APB2
+   USART_clock_enable(USARTx);
 
   // Disable USARTx.
-	USARTx->CR1 &= ~USART_CR1_UE;			// disable while configuring
+   USARTx->CR1 &= ~USART_CR1_UE;         // disable while configuring
 
   // No Parity / 8-bit word length / Oversampling x16
-	USARTx->CR1 &= ~USART_CR1_M;			// 8 data bits
-	USARTx->CR1 &= ~USART_CR1_PCE;			// no parity
-	USARTx->CR1 &= ~USART_CR1_OVER8;		// oversampling by 16
-	USARTx->CR2 &= ~USART_CR2_STOP;			// 1 stop bit
+   USARTx->CR1 &= ~USART_CR1_M;         // 8 data bits
+   USARTx->CR1 &= ~USART_CR1_PCE;         // no parity
+   USARTx->CR1 &= ~USART_CR1_OVER8;      // oversampling by 16
+   USARTx->CR2 &= ~USART_CR2_STOP;         // 1 stop bit
 
   // BAUD RATE (Default: 9600)
   //    Baud rate : BRR[15:4]=mantissa, BRR[3:0]=fraction (1/16 steps)
   //    USARTDIV = f_APB1 / (16 x baud)
   //    USART_baud(USARTx, 9600);
-  uint32_t baud=  9600;				// Default baud rate for USART2
-  float fCK      = (float)EC_SYSCLK / 2;		// APB1 : 84MHz PLL -> 42MHz
+  uint32_t baud=  9600;            // Default baud rate for USART2
+  // For USART2:   
+  //float fCK      = (float)EC_SYSCLK / 2;      // APB1 : 84MHz PLL -> 42MHz
+  // For USART1:   
+  float fCK      = (float)EC_SYSCLK;      // APB2 : 84MHz PLL -> 84MHz
+  
   float USARTDIV = fCK / 16 / baud;
   uint32_t MNT   = (uint32_t)USARTDIV;
   uint32_t FRC   = round((USARTDIV - MNT) * 16);
-	if (FRC > 15) { MNT += 1; FRC = 0; }		// carry into the mantissa
-	USARTx->BRR = (MNT << 4) | FRC;
+   if (FRC > 15) { MNT += 1; FRC = 0; }      // carry into the mantissa
+   USARTx->BRR = (MNT << 4) | FRC;
 
   // Enable TX, RX
-	USARTx->CR1 |= (USART_CR1_TE | USART_CR1_RE);	// transmitter + receiver
+   USARTx->CR1 |= (USART_CR1_TE | USART_CR1_RE);   // transmitter + receiver
   // Enable USART
-  	USARTx->CR1 |= USART_CR1_UE;
+     USARTx->CR1 |= USART_CR1_UE;
 
 // 3. RX interrupt (data ready to be read)
   // Enable RXNE interrupt
-	USARTx->CR1 |= USART_CR1_RXNEIE;
+   USARTx->CR1 |= USART_CR1_RXNEIE;
   // USART2 IRQ
-	uint32_t USART_IRQ = USART2_IRQn;
-	if (USARTx == USART1){
-		USART_IRQ = USART1_IRQn;
-	}
-	NVIC_SetPriority(USART_IRQ, 1);
-	NVIC_EnableIRQ(USART_IRQ);
+   uint32_t USART_IRQ = USART2_IRQn;
+   if (USARTx == USART1){
+      USART_IRQ = USART1_IRQn;
+   }
+   NVIC_SetPriority(USART_IRQ, 1);
+   NVIC_EnableIRQ(USART_IRQ);
 }
 
 
