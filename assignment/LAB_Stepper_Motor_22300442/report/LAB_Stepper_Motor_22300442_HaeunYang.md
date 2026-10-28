@@ -1,72 +1,102 @@
 # LAB: Stepper Motor
 
-**Date:** 2026-10-14
+**Date:** 2026-10-28
 
-**Author/Partner:** YOUR NAME GOES HERE
+**Author/Partner:** Haeun Yang
 
-**Demo Video:** [demo video link](youtube.com/watch?v=DcJxc1tsqTo&feature=youtu.be)
+**Github:** https://github.com/haeunyang5/EC-STM32F4-22300442
+
+**Demo Video:** [demo video link](https://youtube.com/watch?v=DcJxc1tsqTo&feature=youtu.be)
+
+**PDF version:** LAB_Stepper_Motor_22300442_HaeunYang.pdf
 
 
 
 ## Introduction
 
-#### Requirement
+In **this lab**, a unipolar stepper motor (28BYJ-48) is driven by an STM32F411 through a ULN2003 driver. The coil excitation sequence is implemented as a Moore finite state machine (FSM) for both full-stepping and half-stepping. Using this FSM, the motor is rotated by a given number of steps at a given speed [rpm] in either direction, the maximum unloaded speed is measured, and an emergency stop is implemented with an external interrupt (EXTI).
+
+### Requirement
 
 **Hardware**
 
 - MCU
   - NUCLEO-F411RE
 - Actuator/Sensor/Others:
-  - **Tutorial:**
-    - Stepper Motor SM-42BYG011 (12V)
-    - Motor Driver A4988
-  - **Lab:**
-    - Stepper Motor 28BYJ-48 (5V)
-    - Motor Driver ULN2003
+  - Stepper Motor 28BYJ-48 (5V)
+  - Motor Driver ULN2003
   - breadboard
 
 **Software**
 
-- Keil uVision, CMSIS, EC_HAL library
+- VS Code (PlatformIO), CMSIS, EC_HAL library
 
 
 
-## spec
+## Problem: Stepper Motor Control with FSM
 
-- **Driver:** **ULN2003 motor driver.**[ULN2003 spec sheet](https://www.electronicoscaldas.com/datasheet/ULN2003A-PCB.pdf)
-- **Motor:** 28BYJ-48
+### Problem Description
+
+The stepper motor is controlled with the following procedure.
+
+1. Find the number of steps per revolution in full-stepping.
+2. Rotate the motor about 1 revolution at 1 rpm.
+3. Rotate the motor in the opposite direction.
+4. Increase the speed and find the maximum speed without load.
+5. Stop the motor immediately when the user button (B1, PC13) is pressed, using EXTI (emergency stop).
+6. Apply half-stepping and repeat 1–5.
 
 
 
-<img src="img/3.png" alt="1" width="800">
+### Motor and Driver Specification
+
+- **Driver:** ULN2003 Darlington transistor array ([ULN2003 spec sheet](https://www.electronicoscaldas.com/datasheet/ULN2003A-PCB.pdf))
+- **Motor:** 28BYJ-48, 5 V unipolar, 4 phases. The internal motor has 32 full steps per revolution (11.25°/step) and a 1/64 gear reduction, so the output shaft needs 32 × 64 = **2048 full steps** (4096 half steps) per revolution.
+
+<img src="img/3.png" alt="motor spec" width="800">
 
 
 
-## FSM design for Stepper Motor Sequence
+### FSM design for Stepper Motor Sequence
 
-### **State Table for Full-Stepping**
+#### State Table for Full-Stepping
 
 - **Full-stepping sequence**
 
-![full_sequence](img\full_sequence.png)
+![full_sequence](img/full_sequence.png)
 
+- **State Table**: Moore FSM. The input is the direction (DIR), and the output is the level of A, B, A', B'. DIR=0 follows the sequence S0→S1→S2→S3 and DIR=1 follows the reverse sequence. On the 28BYJ-48 used in this lab, DIR=0 rotated the output shaft counterclockwise, so `DIR_CCW = 0` and `DIR_CW = 1`.
 
+![full_state_table](img/full_state_table.png)
 
-- **State Table**: Moore FSM
-
-![full_state_table](img\full_state_table.png)
-
-### **State Table for Half-Stepping**
+#### State Table for Half-Stepping
 
 - **Half-stepping sequence**
 
-![half_sequence](img\half_sequence.png)
-
-
+![half_sequence](img/half_sequence.png)
 
 - **State Table**: Moore FSM
 
-![half_state_table](img\half_state_table.png)
+![half_state_table](img/half_state_table.png)
+
+
+
+### Configuration
+
+| Function                    | Pins                | Configuration                      |
+| --------------------------- | ------------------- | ---------------------------------- |
+| Stepper output A, B, A', B' | PB10, PB4, PB5, PB3 | DOUT, FAST speed                   |
+| Button (B1, emergency stop) | PC13                | DIN, EXTI falling edge, priority 0 |
+| System clock                |                     | PLL 84 MHz                         |
+| SysTick                     |                     | 1 ms tick (`delay_ms()`)           |
+
+
+
+### Connection Diagram
+
+The four outputs of the MCU (PB10, PB4, PB5, PB3) are connected to IN1–IN4 of the ULN2003 board, and the motor connector is plugged into the driver. The driver board is supplied with 5 V, and its GND is connected to the GND of the MCU.
+
+<img src="img/4.png" alt="connection diagram" width="600">
 
 
 
@@ -75,25 +105,11 @@
 #### **Function Definitions (ecStepper.h)**
 
 ```c
-#include "stm32f411xe.h"
-#include "ecPinNames.h"
-#include "ecRCC2.h"
-#include "ecGPIO2.h"
-#include "ecSysTick2.h"
-			
-#ifndef __EC_STEPPER2_H
-#define __EC_STEPPER2_H
-
-#ifdef __cplusplus
- extern "C" {
-#endif /* __cplusplus */
-
 // Stepper Mode
 #define HALF 0
 #define FULL 1	 
-#define DIR_CW 0
-#define DIR_CCW 1	  
-
+#define DIR_CW 1
+#define DIR_CCW 0  
 
 //State number 
 typedef enum {
@@ -124,36 +140,13 @@ void stepper_out(uint32_t state);
 // Stop Stepper Motor
 void stepper_stop(void);
 
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
-
-#endif // __EC_STEPPER2_H
-
 ```
 
+#### FSM Tables (ecStepper.c)
 
-
-### **Function Explanation (ecStepper.c)**
+The FSM is stored as a constant table. `next[0]` is the next state for DIR=0 (`DIR_CCW`) and `next[1]` is the next state for DIR=1 (`DIR_CW`). `out[]` is the output of the state (Moore FSM).
 
 ```c
-#include "stm32f4xx.h"
-#include "ecStepper.h"
-
-
-// Stepper Motor variable
-// Stepper Motor Spec
-// 28BYJ-48 : 64 steps/rev x 1/32 gear = 2048 
-static uint32_t STEP_PER_REV ;
-static PinName_t stepperPins[4] ;
-static volatile uint32_t _steps ;
-static volatile uint32_t _step_delay = 100 ; 		
-static const StateStepper_t *fsm ;		// points at fsm_full or fsm_half (chosen in stepper_init)
-static volatile uint32_t state = 0 ;	// current FSM state
-
-
-
 // Output: A B A' B'
 static const StateStepper_t fsm_Full[4] = {	
 	{{S1,S3},{HIGH,HIGH,LOW,LOW}},	
@@ -161,7 +154,6 @@ static const StateStepper_t fsm_Full[4] = {
  	{{S3,S1},{LOW,LOW,HIGH,HIGH}},	
  	{{S0,S2},{HIGH,LOW,LOW,HIGH}}
 };
-
 
 static const StateStepper_t fsm_Half[8] = {  
 	{{S1,S7},{1,0,0,0}},
@@ -173,85 +165,13 @@ static const StateStepper_t fsm_Half[8] = {
 	{{S7,S5},{0,0,0,1}},
 	{{S0,S6},{1,0,0,1}}
 };
-
-
-// Initialization of Stepper Motor
-void stepper_init(uint32_t mode, PinName_t *pinStepper){
-	if (mode == HALF) {
-		fsm = fsm_Half;
-		STEP_PER_REV = 4096 ; // instead of #define, for always making 1 rpm 
-	}
-	else{
-		fsm = fsm_Full;
-		STEP_PER_REV = 2048 ;
-	}
-	//  GPIO Digital Out Initiation
-	// For A, B, AN, BN
-
-	for (int i=0; i<4; i++){
-		stepperPins[i] = pinStepper[i];
-		GPIO_init(stepperPins[i], OUTPUT) ;
-		GPIO_ospeed(stepperPins[i], FAST_SPEED) ;
-	} 
-}
-
-uint32_t stepper_stepPerRev(void) {    // for main.c
-	return STEP_PER_REV ;
-}
-
-// Converts Motor [rpm] to step delay in [msec]
-void stepper_speed (uint32_t speedRPM){      // rpm
-		_step_delay = 60*1000/(STEP_PER_REV*speedRPM) ; // in [msec]	
-		// [usec] can be used for a higher accuracy
-		// But needs delay_us() 
-
-}
-
-
-// Run Stepper Motor for given steps and direction
-void stepper_step(uint32_t steps, uint32_t direction){
-	// Exit if stepper_init() not called 
-	if (fsm == 0) return ;
-	_steps = steps ;
-
-	// run for step size: 
-	for (uint32_t i = 0; i < _steps; i++){
-		// Update Present State
-		if (direction == DIR_CCW) state = fsm[state].next[1] ; 
-		else state = fsm[state].next[0] ; // CW
-
-		// Output of Present State
-		stepper_out(state) ;
-	
-		// Delay for steppermotor speed
-		delay_ms(_step_delay) ;
-	}
-}
-
-// Stepper Motor Output for given state
-void stepper_out(uint32_t state){
-	
-	// stepperPins[0]=A, stepperPins[1]=B, ...
-	//out[0]=A, out[1]=B, ...
-
-	for (int i = 0; i < 4; i++) {
-		GPIO_write(stepperPins[i], fsm[state].out[i]);
-	}
-	
-}
-
-// Stop Stepper Motor
-void stepper_stop(void) {
-    _steps = 0;    
-    
-	for (int i=0; i<4; i++) GPIO_write(stepperPins[i],  0) ;
-}
-
 ```
 
+A pointer `fsm` points to `fsm_Full` or `fsm_Half` depending on the mode chosen in `stepper_init()`, so the same `stepper_step()` and `stepper_out()` functions are used for both modes.
 
+---
 
-### **stepper_init()**
+#### stepper_init()
 
 Selects the FSM table and the number of steps per revolution according to the drive mode (Full/Half), and initializes the four output pins (A, B, A', B') as GPIO outputs.
 
@@ -259,7 +179,7 @@ Selects the FSM table and the number of steps per revolution according to the dr
 void stepper_init(uint32_t mode, PinName_t *pinStepper)
 ```
 
-#### Parameters
+**Parameters**
 
 - `mode`: Drive mode. `FULL` or `HALF`
 - `pinStepper`: Array of pins connected in the order A, B, A', B'
@@ -283,7 +203,7 @@ void stepper_init(uint32_t mode, PinName_t *pinStepper){
 }
 ```
 
-#### Example code
+**Example code**
 
 ```c
 PinName_t pinStepper[4] = {PB_10, PB_4, PB_5, PB_3};   // A, B, A', B'
@@ -292,27 +212,15 @@ stepper_init(FULL, pinStepper);
 
 ---
 
+#### stepper_stepPerRev()
 
-
-### **stepper_stepPerRev()**
-
-Returns the number of steps required for one revolution of the output shaft in the current mode. (Full: 2048, Half: 4096)
+Returns the number of steps required for one revolution of the output shaft in the current mode (Full: 2048, Half: 4096).
 
 ```c
 uint32_t stepper_stepPerRev(void)
 ```
 
-#### Parameters
-
-- None
-
-```c
-uint32_t stepper_stepPerRev(void) {
-	return STEP_PER_REV ;
-}
-```
-
-#### Example code
+**Example code**
 
 ```c
 uint32_t rev   = 1;
@@ -321,9 +229,7 @@ uint32_t steps = stepper_stepPerRev() * rev;
 
 ---
 
-
-
-### **stepper_speed()**
+#### stepper_speed()
 
 Converts the motor speed [rpm] into the delay time per step [ms] and sets it.
 
@@ -331,7 +237,7 @@ Converts the motor speed [rpm] into the delay time per step [ms] and sets it.
 void stepper_speed(uint32_t speedRPM)
 ```
 
-#### Parameters
+**Parameters**
 
 - `speedRPM`: Target rotation speed [rpm]
 
@@ -341,45 +247,44 @@ void stepper_speed (uint32_t speedRPM){
 }
 ```
 
-#### Example code
+**Example code**
 
 ```c
-stepper_speed(2);   // 2 rpm
+stepper_speed(1);   // 1 rpm -> 29 ms/step (full), 14 ms/step (half)
 ```
 
 ---
 
+#### stepper_step()
 
-
-### **stepper_step()**
-
-Rotates the motor by the given number of steps in the given direction. At each step, the next state is determined from the present state and the direction, the output of that state is applied, and then the function waits for `_step_delay`.
+Rotates the motor by the given number of steps in the given direction. At each step, the next state is determined from the present state and the direction, the output of that state is applied, and then the function waits for `_step_delay`. Since the loop condition reads the global `_steps`, the loop ends immediately when `stepper_stop()` sets `_steps` to 0 in an interrupt.
 
 ```c
 void stepper_step(uint32_t steps, uint32_t direction)
 ```
 
-#### Parameters
+**Parameters**
 
 - `steps`: Number of steps to rotate
-- `direction`: Rotation direction. `DIR_CW` (clockwise) or `DIR_CCW` (counterclockwise)
+- `direction`: Rotation direction. `DIR_CW` or `DIR_CCW`
 
 ```c
 void stepper_step(uint32_t steps, uint32_t direction){
-	if (fsm == 0) return ;
+	if (fsm == 0) return ;           // exit if stepper_init() was not called
 	_steps = steps ;
 
 	for (uint32_t i = 0; i < _steps; i++){
-		if (direction == DIR_CCW) state = fsm[state].next[1] ; 
-		else state = fsm[state].next[0] ;
+		// Update present state
+		if (direction == DIR_CCW) state = fsm[state].next[0] ; 
+		else state = fsm[state].next[1] ;
 
-		stepper_out(state) ;
-		delay_ms(_step_delay) ;
+		stepper_out(state) ;         // output of present state
+		delay_ms(_step_delay) ;      // delay for motor speed
 	}
 }
 ```
 
-#### Example code
+**Example code**
 
 ```c
 stepper_step(stepper_stepPerRev(), DIR_CW);   // one revolution, clockwise
@@ -387,9 +292,7 @@ stepper_step(stepper_stepPerRev(), DIR_CW);   // one revolution, clockwise
 
 ---
 
-
-
-### **stepper_out()**
+#### stepper_out()
 
 Reads the output values of the given state from the FSM table and writes them to the A, B, A', B' pins.
 
@@ -397,9 +300,9 @@ Reads the output values of the given state from the FSM table and writes them to
 void stepper_out(uint32_t state)
 ```
 
-#### Parameters
+**Parameters**
 
-- `state`: FSM state number to output (Full: S0–S3, Half: S0–S7)
+- `state`: FSM state number (Full: S0–S3, Half: S0–S7)
 
 ```c
 void stepper_out(uint32_t state){
@@ -409,7 +312,7 @@ void stepper_out(uint32_t state){
 }
 ```
 
-#### Example code
+**Example code**
 
 ```c
 stepper_out(S0);   // Full: A=1, B=1, A'=0, B'=0
@@ -417,19 +320,13 @@ stepper_out(S0);   // Full: A=1, B=1, A'=0, B'=0
 
 ---
 
-
-
-### **stepper_stop()**
+#### stepper_stop()
 
 Sets the remaining step count to 0 so that the rotation loop in `stepper_step()` ends, and sets all coil outputs to LOW to stop the motor.
 
 ```c
 void stepper_stop(void)
 ```
-
-#### Parameters
-
-- None
 
 ```c
 void stepper_stop(void) {
@@ -438,28 +335,19 @@ void stepper_stop(void) {
 }
 ```
 
-#### Example code
+**Example code**
 
 ```c
-void EXTI15_10_IRQHandler(void) {  
-	if (is_pending_EXTI(BUTTON_PIN)) {
-		stepper_stop();
-		clear_pending_EXTI(BUTTON_PIN);
-	}
-}
+stepper_stop();   // called in EXTI15_10_IRQHandler()
 ```
 
+---
 
-
-### **Main**
+#### Main Code (LAB_Stepper_Motor.c)
 
 ```c
 #include "stm32f411xe.h"
-#include "ecGPIO2.h"
-#include "ecRCC2.h"
-#include "ecEXTI2.h"
-#include "ecSysTick2.h"
-#include "ecStepper.h"
+#include "ecSTM32F4v2.h"
 
 // ( A, B,  AN,  BN)
 PinName_t pinStepper[4]    = {PB_10,PB_4,PB_5,PB_3};
@@ -473,8 +361,8 @@ void setup(void){
 	GPIO_init(BUTTON_PIN, INPUT);           		// GPIOC pin13 initialization
     EXTI_init(BUTTON_PIN, FALL, 0);           		// External Interrupt Setting
 
-	stepper_init(FULL, pinStepper); 				// Stepper GPIO pin initialization
-	stepper_speed(14);                          		//  set stepper motor speed
+	stepper_init(HALF, pinStepper); 				// Stepper GPIO pin initialization
+	stepper_speed(2);                          		//  set stepper motor speed
 }
 
 
@@ -485,12 +373,12 @@ int main(void) {
 	uint32_t steps=stepper_stepPerRev()*rev;
 	
 	// Inifinite Loop ----------------------------------------------------------
-	// while(1){
+	while(1){
 		stepper_step(steps, DIR_CW);  // (Step : 2048, Direction : 0 or 1, Mode : FULL or HALF)
 		delay_ms(2000);
-		// stepper_step(steps, DIR_CCW);  // (Step : 2048, Direction : 0 or 1, Mode : FULL or HALF)
-		// delay_ms(2000);
-	// }
+		stepper_step(steps, DIR_CCW);  // (Step : 2048, Direction : 0 or 1, Mode : FULL or HALF)
+		delay_ms(2000);
+	}
 }
 
 
@@ -503,23 +391,35 @@ void EXTI15_10_IRQHandler(void) {
 }
 ```
 
-
-
-## Configuration
-
-| Function     | Pins                | Configuration |
-| ------------ | ------------------- | ------------- |
-| A, B, A', B' | PB10, PB4, PB5, PB3 | DOUT, FAST    |
+- The mode argument of `stepper_init()` (`FULL` / `HALF`) is changed for each procedure.
+- The main loop rotates the motor one revolution CW, waits 2 s, rotates one revolution CCW, and waits 2 s.
 
 
 
-## Connection Diagram
+### Results
 
-<img src="img/4.png" alt="1" width="600">
+| Procedure                                | Full-stepping | Half-stepping |
+| ---------------------------------------- | ------------- | ------------- |
+| Steps per revolution                     | 2048          | 4096          |
+| Step delay at 1 rpm (`stepper_speed(1)`) | 29 ms         | 14 ms         |
+| Time for 1 revolution at 1 rpm           | 58 s          | 56 s          |
+| Maximum speed                            | 14 rpm        | 14 rpm        |
 
 
 
-## Discussion
+**Analysis.** In full-stepping, one revolution took 2048 steps as calculated from the motor specification, and the rotation direction was reversed by selecting the other column of `next[]` in the FSM table. At 1 rpm, one revolution took 58 s instead of 60 s because of the integer truncation of the step delay and the resolution of `delay_ms()` (see Troubleshooting).
+
+In half-stepping, twice as many steps are needed for one revolution, so the step delay is halved for the same rpm. One revolution at 1 rpm took 56 s. The step delay is truncated from 14.65 ms to 14 ms, and `delay_ms()` is about 0.5 ms shorter on average, so one revolution takes about 4096 × 13.5 ms ≈ 55.3 s, which agrees with the measurement.
+
+The maximum speed was 14 rpm in both modes. In full-stepping, the motor rotated with a 2 ms step delay but did not start with 1 ms, because the torque of the stepper motor decreases at a high step rate. In half-stepping, 14 rpm corresponds to a step delay of about 1 ms (60000 / (4096 × 14) ≈ 1.05 ms → 1 ms), so the motor ran with a shorter delay than in full-stepping, because each half step is a smaller movement of the rotor.
+
+![5png](img/5png.png)
+
+Demo video: [demo video link](https://youtube.com/watch?v=DcJxc1tsqTo&feature=youtu.be)
+
+
+
+### Discussion
 
 **1. Find out the trapezoid-shape velocity profile for a stepper motor. When is this profile necessary?**
 
@@ -544,7 +444,7 @@ Micro-stepping drives the two coils with sine and cosine currents instead of on/
 
 The ULN2003 is only a Darlington transistor array without any sequencing logic (Texas Instruments, 2025). The microcontroller must generate the phase sequence and control four pins at every step, as done by the FSM in this experiment.
 
-In contrast, the A4988, DRV8834, and TB6600 have a built-in translator. The microcontroller only sends one pulse to the STEP pin to move one step and sets the direction with the DIR pin (Allegro MicroSystems, 2022; Texas Instruments, 2015; Toshiba Corporation, 2014). These drivers also regulate the coil current and support micro-stepping in hardware, which reduces the CPU load.d
+In contrast, the A4988, DRV8834, and TB6600 have a built-in translator. The microcontroller only sends one pulse to the STEP pin to move one step and sets the direction with the DIR pin (Allegro MicroSystems, 2022; Texas Instruments, 2015; Toshiba Corporation, 2014). These drivers also regulate the coil current and support micro-stepping in hardware, which reduces the CPU load.
 
 | Item            | ULN2003            | A4988 / DRV8834 / TB6600       |
 | --------------- | ------------------ | ------------------------------ |
@@ -553,12 +453,6 @@ In contrast, the A4988, DRV8834, and TB6600 have a built-in translator. The micr
 | Current control | None               | PWM current regulation         |
 | Micro-stepping  | Not supported      | Supported (up to 1/16 or 1/32) |
 | MCU load        | High               | Low                            |
-
-
-
-## Results
-
-[demo video link](youtube.com/watch?v=DcJxc1tsqTo&feature=youtu.be)
 
 
 
@@ -602,7 +496,7 @@ Second, `delay_ms()` counts 1 ms SysTick ticks. Because the function is called a
 $$
 2048 \times 28.5\ \text{ms} \approx 58.4\ \text{s}
 $$
-, which agrees well with the measured value.
+which agrees well with the measured value.
 
 Both errors can be reduced by calculating the step delay in microseconds and generating it with a microsecond-resolution timer, such as `delay_us()` or a hardware timer interrupt.
 
