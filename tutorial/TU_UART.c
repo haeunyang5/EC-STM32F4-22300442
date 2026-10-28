@@ -12,7 +12,7 @@ Description      : Tutorial - USART2 with the STUDENT library (ecUART2_student)
 #include "ecRCC2.h"
 #include "ecSysTick2.h"
 #include "ecGPIO2.h"
-#include "ecUART2_student.h"
+#include "ecUART2.h"
 
 
 uint8_t PC_data = 0;

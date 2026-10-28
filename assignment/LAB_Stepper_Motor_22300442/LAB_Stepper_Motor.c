@@ -1,9 +1,15 @@
+/*----------------------------------------------------------------\
+@ Embedded Controller by Young-Keun Kim - Handong Global University
+Author           : Haeun Yang
+Created          : 05-03-2021
+Modified         : 10-28-2026 
+Language/ver     : C++ in VS Code
+
+Description      : Stepper Library Main Script
+/----------------------------------------------------------------*/
+
 #include "stm32f411xe.h"
-#include "ecGPIO2.h"
-#include "ecRCC2.h"
-#include "ecEXTI2.h"
-#include "ecSysTick2.h"
-#include "ecStepper.h"
+#include "ecSTM32F4v2.h"
 
 // ( A, B,  AN,  BN)
 PinName_t pinStepper[4]    = {PB_10,PB_4,PB_5,PB_3};
@@ -17,8 +23,8 @@ void setup(void){
 	GPIO_init(BUTTON_PIN, INPUT);           		// GPIOC pin13 initialization
     EXTI_init(BUTTON_PIN, FALL, 0);           		// External Interrupt Setting
 
-	stepper_init(FULL, pinStepper); 				// Stepper GPIO pin initialization
-	stepper_speed(14);                          		//  set stepper motor speed
+	stepper_init(HALF, pinStepper); 				// Stepper GPIO pin initialization
+	stepper_speed(2);                          		//  set stepper motor speed
 }
 
 
@@ -29,12 +35,12 @@ int main(void) {
 	uint32_t steps=stepper_stepPerRev()*rev;
 	
 	// Inifinite Loop ----------------------------------------------------------
-	// while(1){
+	while(1){
 		stepper_step(steps, DIR_CW);  // (Step : 2048, Direction : 0 or 1, Mode : FULL or HALF)
 		delay_ms(2000);
-		// stepper_step(steps, DIR_CCW);  // (Step : 2048, Direction : 0 or 1, Mode : FULL or HALF)
-		// delay_ms(2000);
-	// }
+		stepper_step(steps, DIR_CCW);  // (Step : 2048, Direction : 0 or 1, Mode : FULL or HALF)
+		delay_ms(2000);
+	}
 }
 
 

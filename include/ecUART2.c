@@ -206,12 +206,12 @@ void USART1_init(void){
    // Alternate Function, Push-Pull, No Pull-up/down, High speed
    GPIO_init(pin_GPIO_TX, AF);
    GPIO_otype(pin_GPIO_TX, PUSH_PULL);
-   GPIO_pupd(pin_GPIO_TX, LOW);
+   GPIO_pupd(pin_GPIO_TX, NO_PUPD);
    GPIO_ospeed(pin_GPIO_TX, HIGH);
 
    GPIO_init(pin_GPIO_RX, AF);
    GPIO_otype(pin_GPIO_RX, PUSH_PULL);
-   GPIO_pupd(pin_GPIO_RX, LOW);
+   GPIO_pupd(pin_GPIO_RX, NO_PUPD);
    GPIO_ospeed(pin_GPIO_RX, HIGH);
 
     // Set Alternate Function Register for USARTx
@@ -270,6 +270,7 @@ void USART1_init(void){
    }
    NVIC_SetPriority(USART_IRQ, 1);
    NVIC_EnableIRQ(USART_IRQ);
+   
 }
 
 

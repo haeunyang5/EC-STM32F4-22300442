@@ -5,7 +5,7 @@ Created          : 05-03-2021
 Modified         : 10-12-2026 
 Language/ver     : C++ in VS Code
 
-Description      : Stepper Library.
+Description      : Stepper Library header file
 /----------------------------------------------------------------*/
 
 #include "stm32f411xe.h"
@@ -24,8 +24,8 @@ Description      : Stepper Library.
 // Stepper Mode
 #define HALF 0
 #define FULL 1	 
-#define DIR_CW 0
-#define DIR_CCW 1	  
+#define DIR_CW 1
+#define DIR_CCW 0
 
 
 //State number 

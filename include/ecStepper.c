@@ -87,8 +87,8 @@ void stepper_step(uint32_t steps, uint32_t direction){
 	// run for step size: 
 	for (uint32_t i = 0; i < _steps; i++){
 		// Update Present State
-		if (direction == DIR_CCW) state = fsm[state].next[1] ; 
-		else state = fsm[state].next[0] ; // CW
+		if (direction == DIR_CCW) state = fsm[state].next[0] ; 
+		else state = fsm[state].next[1] ; // CW
 
 		// Output of Present State
 		stepper_out(state) ;

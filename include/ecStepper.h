@@ -24,8 +24,8 @@ Description      : Stepper Library header file
 // Stepper Mode
 #define HALF 0
 #define FULL 1	 
-#define DIR_CW 0
-#define DIR_CCW 1	  
+#define DIR_CW 1
+#define DIR_CCW 0
 
 
 //State number 

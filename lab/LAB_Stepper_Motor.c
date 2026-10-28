@@ -2,18 +2,14 @@
 @ Embedded Controller by Young-Keun Kim - Handong Global University
 Author           : Haeun Yang
 Created          : 05-03-2021
-Modified         : 10-14-2026 
+Modified         : 10-28-2026 
 Language/ver     : C++ in VS Code
 
 Description      : Stepper Library Main Script
 /----------------------------------------------------------------*/
 
 #include "stm32f411xe.h"
-#include "ecGPIO2.h"
-#include "ecRCC2.h"
-#include "ecEXTI2.h"
-#include "ecSysTick2.h"
-#include "ecStepper.h"
+#include "ecSTM32F4v2.h"
 
 // ( A, B,  AN,  BN)
 PinName_t pinStepper[4]    = {PB_10,PB_4,PB_5,PB_3};
