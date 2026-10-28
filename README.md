@@ -18,6 +18,10 @@ MCU: STM32F411RE (Nucleo-64)
 
 
 
+**Table of Contents**
+
+[TOC]
+
 # GPIO Digital In/Out
 
 ### Header File
@@ -1042,6 +1046,44 @@ void USART_init(USART_TypeDef* USARTx, PinName_t pin_GPIO_TX, PinName_t pin_GPIO
 - `pin_GPIO_RX` : RX pin (e.g., `PA_10`)
 - `baud` : Baud rate (e.g., `9600`)
 
+```c
+void USART_init(USART_TypeDef* USARTx, PinName_t pin_GPIO_TX, PinName_t pin_GPIO_RX, uint32_t baud){
+//1. GPIO Pin for TX and RX
+	USART_pins(USARTx, pin_GPIO_TX, pin_GPIO_RX);
+
+//2. USARTx (x=2,1,6) configuration
+	USART_clock_enable(USARTx);
+
+	// Disable USARTx.
+	USARTx->CR1 &= ~USART_CR1_UE; 	// USART disable
+
+	// No Parity / 8-bit word length / Oversampling x16 / Stop bit =1
+	USARTx->CR1 &= ~USART_CR1_PCE;    
+	USARTx->CR1 &= ~USART_CR1_M;      
+	USARTx->CR1 &= ~USART_CR1_OVER8;   
+	USARTx->CR2 &= ~USART_CR2_STOP;    
+
+	// Set Baudrate using APB frequency (42MHz)
+	// If oversampling by 16, Tx/Rx baud = f_CK / (16*USARTDIV),
+	// If oversampling by 8,  Tx/Rx baud = f_CK / (8*USARTDIV)
+	USART_baud(USARTx, baud);
+
+	// Enable TX, RX, and USARTx
+	USARTx->CR1 |= (USART_CR1_RE | USART_CR1_TE);   	// Transmitter and Receiver enable
+	USARTx->CR1 |= USART_CR1_UE; 						          // USART enable
+
+// 3. RX interrupt (data ready to be read)
+  // Enable RXNE interrupt
+	USARTx->CR1 |= USART_CR1_RXNEIE;
+  // USART_IRQn
+	uint32_t USART_IRQ = USART2_IRQn;
+  // Set the priority and enable interrupt 
+	NVIC_SetPriority(USART_IRQ, 1);
+	NVIC_EnableIRQ(USART_IRQ);
+
+}
+```
+
 **Example code**
 
 ```c
@@ -1060,6 +1102,30 @@ void USART_baud(USART_TypeDef* USARTx, uint32_t baud)
 
 - `USARTx` : USART peripheral (`USART1`, `USART2`, `USART6`)
 - `baud` : Baud rate (e.g., `9600`, `38400`, `115200`)
+
+```c
+void USART_baud(USART_TypeDef* USARTx, uint32_t baud){
+	// Disable USARTx.
+	USARTx->CR1  &= ~USART_CR1_UE; 						// USART disable
+	USARTx->BRR = 0;
+
+	// Configure Baud-rate
+	float fCK = EC_SYSCLK;                                   // if(USARTx==USART1 || USARTx==USART6), APB2
+	                                                         // (84MHz after RCC_PLL_init(), 16MHz after RCC_HSI_init())
+	if(USARTx == USART2) fCK =fCK/2;      // APB1
+    float USARTDIV = (float) fCK/16.0/baud;
+
+	// Method 1 : build the two BRR fields explicitly
+	//   BRR[15:4] = DIV_Mantissa (integer part of USARTDIV)
+	//   BRR[3:0]  = DIV_Fraction (counts 1/16 steps -> multiply the fraction by 16)
+	uint32_t mantissa = (uint32_t)USARTDIV;                            
+	uint32_t fraction = (uint32_t)((USARTDIV - mantissa) * 16.0f + 0.5f); 
+	USARTx->BRR = (mantissa << 4) | (fraction & 0xF);
+  
+	// Enable TX, RX, and USARTx
+	USARTx->CR1 |= USART_CR1_UE;
+}
+```
 
 **Example code**
 
@@ -1081,6 +1147,48 @@ void USART_pins(USART_TypeDef* USARTx, PinName_t pin_GPIO_TX, PinName_t pin_GPIO
 - `pin_GPIO_TX` : TX pin (e.g., `PA_2`)
 - `pin_GPIO_RX` : RX pin (e.g., `PA_3`)
 
+```c
+void USART_pins(USART_TypeDef* USARTx, PinName_t pin_GPIO_TX, PinName_t pin_GPIO_RX){
+	GPIO_TypeDef *GPIO_TX;
+	unsigned int pinTX;
+	ecPinmap(pin_GPIO_TX, &GPIO_TX, &pinTX);
+
+	GPIO_TypeDef *GPIO_RX;
+	unsigned int pinRX;
+	ecPinmap(pin_GPIO_RX, &GPIO_RX, &pinRX);
+
+	// Alternate Function, Push-Pull, No Pull-up/down, High speed
+	// TX
+	GPIO_TX->MODER   = (GPIO_TX->MODER   & ~(3UL << (2*pinTX))) | (2UL << (2*pinTX));  // AF (10)
+	GPIO_TX->OTYPER &= ~(1UL << pinTX);                                                 // Push-Pull (0)
+	GPIO_TX->PUPDR  &= ~(3UL << (2*pinTX));                                             // No PUPD (00)
+	GPIO_TX->OSPEEDR |=  (3UL << (2*pinTX));                                            // High speed (11)
+
+	// RX
+	GPIO_RX->MODER   = (GPIO_RX->MODER   & ~(3UL << (2*pinRX))) | (2UL << (2*pinRX));
+	GPIO_RX->OTYPER &= ~(1UL << pinRX);
+	GPIO_RX->PUPDR  &= ~(3UL << (2*pinRX));
+	GPIO_RX->OSPEEDR |=  (3UL << (2*pinRX));
+
+	// Set Alternate Function Register for USARTx
+	//   AF7 - USART1, USART2
+	//   AF8 - USART6
+	uint32_t AF_num = (USARTx == USART6) ? 8 : 7;
+	if (pinTX < 8) { GPIO_TX->AFR[0] &= ~(0xFUL << (4*pinTX));     GPIO_TX->AFR[0] |= AF_num << (4*pinTX); }
+	else           { GPIO_TX->AFR[1] &= ~(0xFUL << (4*(pinTX-8))); GPIO_TX->AFR[1] |= AF_num << (4*(pinTX-8)); }
+	
+  if (pinRX < 8) {
+	GPIO_RX->AFR[0] &= ~(0xFUL << (4*pinRX));         
+	GPIO_RX->AFR[0] |= AF_num << (4*pinRX);           
+  }
+  else{
+	GPIO_RX->AFR[1] &= ~(0xFUL << (4*(pinRX-8)));
+	GPIO_RX->AFR[1] |= AF_num << (4*(pinRX-8));
+  }
+
+}
+```
+
 **Example code**
 
 ```c
@@ -1098,6 +1206,12 @@ void USART1_baud(uint32_t baud)
 **Parameters**
 
 - `baud` : Baud rate (e.g., `9600`)
+
+```c
+void USART1_baud(uint32_t baud){
+	USART_baud(USART1, baud);
+}
+```
 
 **Example code**
 
@@ -1117,8 +1231,51 @@ void USART2_baud(uint32_t baud)
 
 - `baud` : Baud rate (e.g., `9600`)
 
+```c
+void USART2_baud(uint32_t baud){
+	USART_baud(USART2, baud);
+}
+```
+
 **Example code**
 
 ```c
 USART2_baud(9600);   // USART2 baud rate = 9600 bps
+```
+
+### Provided functions (used in LAB_USART)
+
+```c
+void USART1_init(void);      // USART1: PA_9 (TX), PA_10 (RX), 9600 baud, RXNE interrupt enabled
+void USART2_init(void);      // USART2: PA_2 (TX), PA_3 (RX), 9600 baud, RXNE interrupt enabled (ST-Link USB)
+
+void USART1_write(uint8_t* buffer, uint32_t nBytes);   // send nBytes (polling on TXE)
+void USART2_write(uint8_t* buffer, uint32_t nBytes);
+uint8_t USART1_read(void);                              // read one received byte
+uint8_t USART2_read(void);
+
+uint32_t is_USART1_RXNE(void);                          // 1 if a byte has been received
+uint32_t is_USART2_RXNE(void);
+```
+
+`printf()` is retargeted to USART2, so it prints to the PC terminal (Tera Term).
+
+**Example code**
+
+```c
+static volatile uint8_t BT_Data = 0;
+
+void setup(void){
+	RCC_PLL_init();
+	SysTick_init();
+	USART2_init();          // PC
+	USART1_init();          // Bluetooth (HC-06) or the other MCU
+}
+
+void USART1_IRQHandler(){                   // USART1 RX interrupt
+	if (is_USART1_RXNE()){
+		BT_Data = USART1_read();            // read received byte
+		printf("RX: %c \r\n", BT_Data);    // display on PC (USART2)
+	}
+}
 ```
