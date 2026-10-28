@@ -18,10 +18,6 @@ MCU: STM32F411RE (Nucleo-64)
 
 
 
-**Table of Contents**
-
-[TOC]
-
 # GPIO Digital In/Out
 
 ### Header File
