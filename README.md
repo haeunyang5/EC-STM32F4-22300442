@@ -1275,3 +1275,354 @@ void USART1_IRQHandler(){                   // USART1 RX interrupt
 	}
 }
 ```
+
+
+
+# Timer Interrupt
+
+### Header File
+
+```c
+ecTIM2.h
+```
+
+```c
+
+#include "stm32f411xe.h"
+#include "ecPinNames.h"
+#include "ecRCC2.h"
+#include "ecGPIO2.h"
+#include "math.h"
+
+#ifdef __cplusplus
+ extern "C" {
+#endif /* __cplusplus */
+
+
+//////////////////////////////////////////////
+/* Timer Update Interrupt Configuration     */
+//////////////////////////////////////////////
+
+// Timer Update Interrupt Initialization
+void TIM_UI_init(TIM_TypeDef* TIMx, uint32_t msec);     // 16-bit  msec < 65,530 msec 
+void TIM_UI_init_us(TIM_TypeDef* TIMx, uint32_t usec);  // 16-bit  usec < 65,530 usec 
+
+// Timer Update Interrupt On/OFf
+void TIM_UI_enable(TIM_TypeDef* TIMx);
+void TIM_UI_disable(TIM_TypeDef* TIMx);
+
+// Timer Update Interrupt Flag
+uint32_t is_UIF(TIM_TypeDef *TIMx);
+void clear_UIF(TIM_TypeDef *TIMx);
+
+
+////////////////////////////////////////////////////////////////
+/* Timer Counter Initialization                              */
+////////////////////////////////////////////////////////////////
+
+// Timer Counter Initialization
+void TIM_init(TIM_TypeDef *TIMx, uint32_t msec); 
+void TIM_init_us(TIM_TypeDef *TIMx, uint32_t usec); 
+
+// Timer Counter Period Config
+void TIM_period(TIM_TypeDef* TIMx, uint32_t msec);		
+void TIM_period_us(TIM_TypeDef* TIMx, uint32_t usec);  	
+
+// Timer Counter Auxiliary Functions
+uint32_t get_TIM_IRQn(TIM_TypeDef* TIMx);
+void TIM_clock_enable(TIM_TypeDef* TIMx);
+
+
+```
+
+### TIM_init()
+
+Enables the timer clock, sets the counter period in msec (f_cnt = 10 kHz), and starts the timer as an up-counter.
+
+```c
+void TIM_init(TIM_TypeDef* TIMx, uint32_t msec)
+```
+
+**Parameters**
+
+- `TIMx` : Timer to initialize (e.g., `TIM2`, `TIM3`)
+- `msec` : Timer period in msec. `1` to `6,553`
+
+```c
+void TIM_init(TIM_TypeDef* TIMx, uint32_t msec){
+	// 1. Enable Timer CLOCK
+	TIM_clock_enable(TIMx);
+
+	// 2. Set CNT period
+	TIM_period_ms(TIMx, msec);
+
+	// 3. Counter Direction : Up-Counter (DIR = 0)
+	TIMx->CR1 &= ~TIM_CR1_DIR;
+
+	// 4. Enable Timer Counter
+	TIMx->CR1 |= TIM_CR1_CEN;
+}
+```
+
+**Example code**
+
+```c
+TIM_init(TIM3, 1000);	// 1 sec period
+```
+
+### TIM_init_us()
+
+Enables the timer clock, sets the counter period in usec (f_cnt = 1 MHz), and starts the timer as an up-counter.
+
+```c
+void TIM_init_us(TIM_TypeDef* TIMx, uint32_t usec)
+```
+
+**Parameters**
+
+- `TIMx` : Timer to initialize (e.g., `TIM2`, `TIM3`)
+- `usec` : Timer period in usec. `1` to `65,536` (16-bit ARR)
+
+```c
+void TIM_init_us(TIM_TypeDef* TIMx, uint32_t usec){
+	// 1. Enable Timer CLOCK
+	TIM_clock_enable(TIMx);
+
+	// 2. Set CNT period
+	TIM_period_us(TIMx, usec);
+
+	// 3. Counter Direction : Up-Counter (DIR = 0)
+	TIMx->CR1 &= ~TIM_CR1_DIR;
+
+	// 4. Enable Timer Counter
+	TIMx->CR1 |= TIM_CR1_CEN;
+}
+```
+
+**Example code**
+
+```c
+TIM_init_us(TIM2, 500);	// 500 usec period
+```
+
+### TIM_period_us()
+
+Sets the prescaler and auto-reload register so that the counter runs at 1 MHz with the given period in usec.
+
+```c
+void TIM_period_us(TIM_TypeDef* TIMx, uint32_t usec)
+```
+
+**Parameters**
+
+- `TIMx` : Timer to configure
+- `usec` : Timer period in usec. `1` to `65,536` (16-bit ARR)
+
+```c
+void TIM_period_us(TIM_TypeDef* TIMx, uint32_t usec){
+	uint32_t Sys_CLK = EC_SYSCLK;			// 84MHz (PLL) or 16MHz (HSI)
+
+	// Counter Frequency (f_cnt)
+	uint32_t f_cnt = 1000000UL;				// 1 MHz -> 1 count = 1 usec
+
+	// Prescaler Value : f_cnt = Sys_CLK / (PSC + 1)
+	uint32_t PSCval = Sys_CLK / f_cnt;		// 84
+	TIMx->PSC = PSCval - 1;					// PSC = 83
+
+	// Reload Value (ARR) for usec unit
+	uint32_t ARRval = (f_cnt / 1000000UL) * usec;
+	TIMx->ARR = ARRval - 1;
+}
+```
+
+**Example code**
+
+```c
+TIM_period_us(TIM2, 1000);	// 1 msec period
+```
+
+
+
+# PWM
+
+### Header File
+
+```c
+ecPWM2.h
+```
+
+```c
+#ifndef __EC_PWM2_STUDENT_H
+#define __EC_PWM2_STUDENT_H
+
+#include "math.h"
+#include "stm32f411xe.h"
+#include "ecGPIO2.h"
+#include "ecTIM2.h"
+
+#ifdef __cplusplus
+ extern "C" {
+#endif /* __cplusplus */
+
+/* PWM Output Mode : OCxM field in CCMRx (3 bits) */
+#define EC_PWM_MODE1	0	// output active while CNT <  CCR  (default)
+#define EC_PWM_MODE2	1	// output active while CNT >= CCR  (inverted)
+
+
+///////////////////////////////////////////////////
+/* 		        EXERCISE					     */
+///////////////////////////////////////////////////
+
+// Internal Helper function: for PWM Initialization
+void PWM_init_config(PinName_t pinName, uint32_t usec);
+// Duty ratio 0~1.0
+void PWM_duty(PinName_t pinName, float duty);
+
+
+
+///////////////////////////////////////////////////
+/* 		GIVEN:  PWM Initialization                */
+///////////////////////////////////////////////////
+
+//  Low Frequency PWM initialization in msec. (below 1kHz)
+// 	Default: 		50% duty ratio. PWM_mode1, Period in msec.
+//  TIM2/TIM5 		(32-bit ARR) : msec 1 ~ 4,294,967
+//  TIM1/TIM3/TIM4 	(16-bit ARR) : msec 1 ~ 6,553   
+void PWM_init(PinName_t pinName, uint32_t msec);	// 1 to 6,553 msec (16-bit)
+
+//  High-Frequency PWM initialization in usec (1kHz to 100 kHz)
+// 	Default: 		50% duty ratio.  PWM_mode1, Period in usec.
+//  TIM2/TIM5 		(32-bit ARR) : 	usec 1 ~ 4,294,967
+//  TIM1/TIM3/TIM4 	(16-bit ARR) : 	usec 1 ~ 6,553   
+void PWM_init_us(PinName_t pinName, uint32_t usec);	// 10 usec and up
+
+
+///////////////////////////////////////////////////
+/* 		GIVEN: DUTY RATIO SETUP                 */
+///////////////////////////////////////////////////
+
+// Set Pulse width in msec
+void PWM_pulsewidth(PinName_t pinName, uint32_t pulse_width_ms);
+
+// Set Pulse width in usec
+void PWM_pulsewidth_us(PinName_t pinName, uint32_t pulse_width_us);
+
+
+////////////////////////////////////////////////////////////////
+/* Internal Helper Functions - GIVEN. DO NOT MODIFY           */
+////////////////////////////////////////////////////////////////
+
+// Internal function for PWM output mode : EC_PWM_MODE1 or EC_PWM_MODE2
+void PWM_mode_config(TIM_TypeDef *TIMx, int chN, uint32_t mode);
+// Internal Helper function for PWM Pin Matching
+void PWM_pinmap(PinName_t pinName, TIM_TypeDef **TIMx, int *chN);
+
+```
+
+### PWM_init_config()
+
+Configures the given pin as a timer PWM output: sets the GPIO alternate function, initializes the timer with the given period, and enables PWM mode 1.
+
+```c
+void PWM_init_config(PinName_t pinName, uint32_t usec)
+```
+
+**Parameters**
+
+- `pinName` : PWM output pin (e.g., `PA_5`)
+- `usec` : PWM period in usec
+
+```c
+void PWM_init_config(PinName_t pinName, uint32_t usec){
+	// 0. Match TIMx from given Port and Pin
+	GPIO_TypeDef *port;
+	unsigned int pin;
+	ecPinmap(pinName, &port, &pin);
+	TIM_TypeDef *TIMx;
+	int chN;
+	PWM_pinmap(pinName, &TIMx, &chN);
+
+	// 1. Initialize GPIO port and pin as AF
+	GPIO_init(pinName, AF);
+
+	// 2. Configure GPIO AFR (4 bits per pin)
+	uint32_t afrIdx   = pin >> 3;
+	uint32_t afrShift = 4 * (pin % 8);
+	uint32_t afNum    = 0;
+
+	if((TIMx == TIM1) || (TIMx == TIM2))                        afNum = 1;	// AF1
+	else if(TIMx == TIM3 || TIMx == TIM4 || TIMx == TIM5)       afNum = 2;	// AF2
+	else if(TIMx == TIM9 || TIMx == TIM10 || TIMx == TIM11)     afNum = 3;	// AF3
+
+	port->AFR[afrIdx] &= ~(0xFUL << afrShift);
+	port->AFR[afrIdx] |=  (afNum  << afrShift);
+
+	// 3. Initialize Timer according to PWM period
+	if((TIMx == TIM2) || (TIMx == TIM5) || (usec <= 65536)){
+		TIM_init_us(TIMx, usec);			// f_cnt = 1 MHz
+	}
+	else {
+		uint32_t msec = usec / 1000;
+		if(msec > 6553) msec = 6553;		// 16-bit ARR limit
+		TIM_init(TIMx, msec);				// f_cnt = 10 kHz
+	}
+
+	// 4. Configure Timer Output mode as PWM (Mode 1, active high, 50%)
+	PWM_mode_config(TIMx, chN, EC_PWM_MODE1);
+
+	// 5. Enable Timer Counter
+	if(TIMx == TIM1) TIMx->BDTR |= TIM_BDTR_MOE;	// TIM1 only
+	TIMx->EGR |= TIM_EGR_UG;					// Update event
+	TIMx->SR   = ~TIM_SR_UIF;					// Clear UIF
+	TIMx->CR1 |= TIM_CR1_CEN;
+}
+```
+
+**Example code**
+
+```c
+PWM_init_config(PA_5, 1000);	// TIM2_CH1, 1 msec period
+```
+
+### PWM_duty()
+
+Sets the duty ratio of the PWM output on the given pin by writing CCR = (ARR + 1) × duty.
+
+```c
+void PWM_duty(PinName_t pinName, float duty)
+```
+
+**Parameters**
+
+- `pinName` : PWM output pin (e.g., `PA_5`)
+- `duty` : Duty ratio. `0.0` to `1.0`
+
+```c
+void PWM_duty(PinName_t pinName, float duty){
+	// 0. Match TIMx from Port and Pin
+	GPIO_TypeDef *port;
+	unsigned int pin;
+	ecPinmap(pinName, &port, &pin);
+	TIM_TypeDef *TIMx;
+	int chN;
+	PWM_pinmap(pinName, &TIMx, &chN);
+
+	// 1. Check the duty ratio range
+	if(duty < 0.0f) duty = 0.0f;
+	if(duty > 1.0f) duty = 1.0f;
+
+	// 2. Duty ratio -> CCR counts (PWM mode 1)
+	uint32_t CCvalue = (uint32_t)((TIMx->ARR + 1) * duty);
+
+	if(chN == 1)      { TIMx->CCR1 = CCvalue; }
+	else if(chN == 2) { TIMx->CCR2 = CCvalue; }
+	else if(chN == 3) { TIMx->CCR3 = CCvalue; }
+	else if(chN == 4) { TIMx->CCR4 = CCvalue; }
+}
+```
+
+**Example code**
+
+```c
+PWM_duty(PA_5, 0.5f);	// 50% duty
+```

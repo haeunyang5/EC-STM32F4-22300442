@@ -93,6 +93,8 @@ void USART_init(USART_TypeDef* USARTx, PinName_t pin_GPIO_TX, PinName_t pin_GPIO
 	USARTx->CR1 |= USART_CR1_RXNEIE;
   // USART_IRQn
 	uint32_t USART_IRQ = USART2_IRQn;
+	if      (USARTx == USART1) USART_IRQ = USART1_IRQn;
+	else if (USARTx == USART6) USART_IRQ = USART6_IRQn;
   // Set the priority and enable interrupt 
 	NVIC_SetPriority(USART_IRQ, 1);
 	NVIC_EnableIRQ(USART_IRQ);

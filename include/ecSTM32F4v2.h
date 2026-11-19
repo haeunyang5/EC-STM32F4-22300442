@@ -1,6 +1,4 @@
 //ecSTM32F4v2.h
-
-
 /*
 ******************************************************************************
 * @course   Embedded Controller- HGU
@@ -26,13 +24,14 @@
 #include "ecGPIO2.h"
 #include "ecEXTI2.h"
 #include "ecSysTick2.h"
-//#include "ecTIM2.h"
-//#include "ecPWM2.h"
+#include "ecTIM2.h"
+#include "ecPWM2.h"
 #include "ecStepper.h"
-//#include "ecADC2.h"
+#include "ecCAP2.h"
 #include "ecUART2.h"
-
-
+#include "ecDHT11.h"
+#include "ecI2C2.h"
+#include "ecADC2.h" 
 
 void MCU_init(void){
     // CLOCK PLL 84MHz
